@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useGame, buildGameSession } from "@/lib/game-context";
 import { distributeQuestions, totalGameQuestions, generateId, shuffle } from "@/lib/utils";
+import { getCachedQuestions, cacheQuestions } from "@/lib/question-cache";
 import type { PooledQuestion, TriviaQuestion, CategorySlot, GameSetup } from "@/lib/types";
 
 type GenerationStatus = "pending" | "loading" | "done" | "error";
@@ -38,6 +39,7 @@ export function LoadingScreen() {
     count: number,
     difficulty?: import("@/lib/types").Difficulty,
   ): Promise<{ questions: TriviaQuestion[]; costUsd: number }> {
+    const existingQuestions = getCachedQuestions(category);
     const res = await fetch("/api/questions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -46,13 +48,16 @@ export function LoadingScreen() {
         count,
         difficulty,
         autodifficulty: !difficulty,
+        existingQuestions,
       }),
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    return { questions: data.questions as TriviaQuestion[], costUsd: data.costUsd ?? 0 };
+    const questions = data.questions as TriviaQuestion[];
+    cacheQuestions(category, questions.map((q) => q.question));
+    return { questions, costUsd: data.costUsd ?? 0 };
   }
 
   async function runGameTimeGeneration() {

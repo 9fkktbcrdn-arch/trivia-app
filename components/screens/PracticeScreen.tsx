@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGame } from "@/lib/game-context";
 import { Button } from "@/components/ui/button";
 import { cn, difficultyLabel, difficultyColor } from "@/lib/utils";
+import { getCachedQuestions, cacheQuestions } from "@/lib/question-cache";
 
 const CHOICE_LABELS = ["A", "B", "C", "D"];
 
@@ -33,7 +34,10 @@ export function PracticeScreen() {
   async function fetchMoreQuestions() {
     const slot = state.setup.categorySlots?.[0];
     if (!slot) return;
-    const existing = questions.map((q) => q.question);
+    // Combine in-session questions with cross-session cache to maximize uniqueness
+    const sessionQuestions = questions.map((q) => q.question);
+    const cachedQuestions = getCachedQuestions(slot.category);
+    const existing = [...new Set([...cachedQuestions, ...sessionQuestions])];
 
     try {
       const res = await fetch("/api/questions", {
@@ -49,6 +53,7 @@ export function PracticeScreen() {
       const data = await res.json();
       if (data.questions) {
         if (data.costUsd) dispatch({ type: "ADD_SESSION_COST", costUsd: data.costUsd });
+        cacheQuestions(slot.category, data.questions.map((q: { question: string }) => q.question));
         dispatch({ type: "PRACTICE_ADD_QUESTIONS", questions: data.questions });
       }
     } catch {

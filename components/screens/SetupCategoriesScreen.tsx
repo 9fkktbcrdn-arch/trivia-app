@@ -11,11 +11,6 @@ import { cn, PRESET_CATEGORIES, difficultyLabel } from "@/lib/utils";
 import type { CategorySlot, Difficulty, RecentCategory } from "@/lib/types";
 
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
-const POINT_LABELS: Record<Difficulty, string> = {
-  easy: "100 pts",
-  medium: "200 pts",
-  hard: "300 pts",
-};
 
 function createDefaultSlots(isGame: boolean): CategorySlot[] {
   if (isGame) {
@@ -271,7 +266,7 @@ function SlotCard({
                   : "text-muted-foreground border-border hover:border-gold-dim",
               )}
             >
-              {difficultyLabel(d)} · {POINT_LABELS[d]}
+              {difficultyLabel(d)}
             </button>
           ))}
         </div>

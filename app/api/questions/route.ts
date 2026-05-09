@@ -15,20 +15,28 @@ const DIFFICULTY_GUIDANCE: Record<Difficulty, string> = {
   hard: "challenging even for knowledgeable adults — requires specific knowledge",
 };
 
+const ACCURACY_RULES = `
+ACCURACY IS THE TOP PRIORITY:
+- Only write questions where you are certain the answer is correct — if you have any doubt about a specific fact, skip it and choose a different question
+- The correct answer must be unambiguously right; the wrong answers must be clearly wrong to anyone who knows the topic
+- Never invent or guess dates, names, numbers, or specific facts — only use things you know with high confidence
+- For franchise/pop-culture categories (movies, books, TV shows), stick to major well-known plot points, character names, and widely-documented facts`;
+
 // Practice mode: user specified a difficulty, generate all questions at that level
 function buildManualPrompt(category: string, difficulty: Difficulty, count: number, existing: string[]): string {
   const avoidClause = existing.length > 0
-    ? `\n\nDo NOT repeat or closely paraphrase any of these existing questions:\n${existing.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
+    ? `\n\nDo NOT repeat or closely paraphrase any of these questions — generate entirely fresh questions on different aspects of the topic:\n${existing.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
     : "";
 
   return `You are a family trivia question writer. Generate exactly ${count} trivia question(s) for the category "${category}" at ${difficulty} difficulty.
+${ACCURACY_RULES}
 
 Difficulty guidance: ${DIFFICULTY_GUIDANCE[difficulty]}
 
-Requirements:
+Other requirements:
 - Strictly age-appropriate (safe for kids ages 8+)
 - All 4 answer choices must be plausible; wrong answers should not be obviously absurd
-- The explanation should be 1-2 sentences with an interesting fun fact
+- The explanation should be 1-2 sentences confirming the correct answer with an interesting detail
 - Vary the question style (who/what/where/when/which/how many)${avoidClause}
 
 Return ONLY a JSON array (no markdown, no commentary):
@@ -45,10 +53,11 @@ Return ONLY a JSON array (no markdown, no commentary):
 // Game Time mode: Claude assigns each question its own difficulty based on actual hardness
 function buildAutoPrompt(category: string, count: number, existing: string[]): string {
   const avoidClause = existing.length > 0
-    ? `\n\nDo NOT repeat or closely paraphrase any of these existing questions:\n${existing.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
+    ? `\n\nDo NOT repeat or closely paraphrase any of these questions — generate entirely fresh questions on different aspects of the topic:\n${existing.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
     : "";
 
   return `You are a family trivia question writer. Generate exactly ${count} trivia question(s) for the category "${category}".
+${ACCURACY_RULES}
 
 For each question, YOU decide the difficulty based on how challenging the question actually is for a smart family — kids ages 8 and 11 playing with their parents:
 - "easy" (100 pts): an 8-year-old with some knowledge of the topic could get it
@@ -57,10 +66,10 @@ For each question, YOU decide the difficulty based on how challenging the questi
 
 Mix difficulties across the set — aim for roughly 30% easy, 40% medium, 30% hard, but let the questions naturally dictate it. Do NOT make all questions the same difficulty.
 
-Requirements:
+Other requirements:
 - Strictly age-appropriate (safe for kids ages 8+)
 - All 4 answer choices must be plausible; wrong answers should not be obviously absurd
-- The explanation should be 1-2 sentences with an interesting fun fact
+- The explanation should be 1-2 sentences confirming the correct answer with an interesting detail
 - Vary the question style (who/what/where/when/which/how many)${avoidClause}
 
 Return ONLY a JSON array (no markdown, no commentary):
