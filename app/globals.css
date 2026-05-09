@@ -1,26 +1,161 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
+/* ── James Bond: Onyx & Gold ─────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* backgrounds */
+  --background: oklch(0.09 0 0);
+  --foreground: oklch(0.96 0.01 85);
+  --card: oklch(0.12 0 0);
+  --card-foreground: oklch(0.96 0.01 85);
+  --popover: oklch(0.12 0 0);
+  --popover-foreground: oklch(0.96 0.01 85);
+
+  /* gold as primary */
+  --primary: oklch(0.76 0.12 80);
+  --primary-foreground: oklch(0.09 0 0);
+
+  /* surfaces */
+  --secondary: oklch(0.16 0 0);
+  --secondary-foreground: oklch(0.85 0.01 85);
+  --muted: oklch(0.16 0 0);
+  --muted-foreground: oklch(0.55 0.005 85);
+  --accent: oklch(0.76 0.12 80);
+  --accent-foreground: oklch(0.09 0 0);
+
+  /* semantic */
+  --destructive: oklch(0.62 0.22 27);
+  --border: oklch(0.22 0 0);
+  --input: oklch(0.16 0 0);
+  --ring: oklch(0.76 0.12 80);
+  --radius: 0.75rem;
+
+  /* gold scale (oklch) */
+  --gold-dim:    oklch(0.55 0.09 80);
+  --gold-mid:    oklch(0.68 0.12 80);
+  --gold-bright: oklch(0.76 0.12 80);
+  --gold-light:  oklch(0.86 0.10 82);
+  --gold-glow:   oklch(0.76 0.12 80 / 0.18);
+
+  /* success / danger */
+  --success: oklch(0.65 0.18 142);
+  --danger:  oklch(0.62 0.22 27);
+}
+
+.dark {
+  /* identical — the app is always dark */
+  --background: oklch(0.09 0 0);
+  --foreground: oklch(0.96 0.01 85);
+  --card: oklch(0.12 0 0);
+  --card-foreground: oklch(0.96 0.01 85);
+  --popover: oklch(0.12 0 0);
+  --popover-foreground: oklch(0.96 0.01 85);
+  --primary: oklch(0.76 0.12 80);
+  --primary-foreground: oklch(0.09 0 0);
+  --secondary: oklch(0.16 0 0);
+  --secondary-foreground: oklch(0.85 0.01 85);
+  --muted: oklch(0.16 0 0);
+  --muted-foreground: oklch(0.55 0.005 85);
+  --accent: oklch(0.76 0.12 80);
+  --accent-foreground: oklch(0.09 0 0);
+  --destructive: oklch(0.62 0.22 27);
+  --border: oklch(0.22 0 0);
+  --input: oklch(0.16 0 0);
+  --ring: oklch(0.76 0.12 80);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold-dim: var(--gold-dim);
+  --color-gold-mid: var(--gold-mid);
+  --color-gold-bright: var(--gold-bright);
+  --color-gold-light: var(--gold-light);
+  --color-gold-glow: var(--gold-glow);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    min-height: 100dvh;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Gold text gradient */
+  .text-gold-gradient {
+    background: linear-gradient(135deg, var(--gold-dim) 0%, var(--gold-bright) 45%, var(--gold-light) 60%, var(--gold-bright) 80%, var(--gold-dim) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Subtle dot grid background */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, oklch(0.25 0 0) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Gold glow box shadow */
+  .shadow-gold {
+    box-shadow: 0 0 0 1px oklch(0.76 0.12 80 / 0.3), 0 4px 24px oklch(0.76 0.12 80 / 0.08);
+  }
+
+  .shadow-gold-lg {
+    box-shadow: 0 0 0 1px oklch(0.76 0.12 80 / 0.4), 0 8px 40px oklch(0.76 0.12 80 / 0.15);
+  }
+
+  /* Score delta float-up animation */
+  .score-delta {
+    animation: scoreDelta 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    pointer-events: none;
+  }
 }
+
+@keyframes scoreDelta {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  60%  { opacity: 1; transform: translateY(-40px) scale(1.15); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.25 0 0); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
