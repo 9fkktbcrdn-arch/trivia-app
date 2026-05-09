@@ -46,7 +46,8 @@ Return ONLY the category name — no explanation, no quotes, no punctuation at t
       throw new Error("Empty response from Claude");
     }
 
-    const callCostUsd = await recordUsage(message.usage.input_tokens, message.usage.output_tokens);
+    let callCostUsd = 0;
+    try { callCostUsd = await recordUsage(message.usage.input_tokens, message.usage.output_tokens); } catch {}
 
     return NextResponse.json({ category, costUsd: callCostUsd });
   } catch (err) {

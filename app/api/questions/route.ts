@@ -94,7 +94,8 @@ export async function POST(req: NextRequest) {
       messages: [{ role: "user", content: prompt }],
     });
 
-    const callCostUsd = await recordUsage(message.usage.input_tokens, message.usage.output_tokens);
+    let callCostUsd = 0;
+    try { callCostUsd = await recordUsage(message.usage.input_tokens, message.usage.output_tokens); } catch {}
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
