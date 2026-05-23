@@ -128,9 +128,12 @@ export function GameScreen() {
   const session = state.session!;
   const { questionPool, currentQuestionIndex, currentTeamIndex, turnPhase, teams } = session;
 
-  const currentQ = questionPool[currentQuestionIndex] as PooledQuestion;
+  const currentQ = questionPool[currentQuestionIndex] as PooledQuestion | undefined;
   const activeTeam = teams[currentTeamIndex];
-  const pts = pointsForDifficulty(currentQ.difficulty);
+  const pts = currentQ ? pointsForDifficulty(currentQ.difficulty) : 0;
+
+  // Guard: question pool exhausted (happens briefly during exit animation)
+  if (!currentQ) return null;
 
   const [deltas, setDeltas] = useState<Record<string, { value: number; key: string }>>({});
   const prevScoresRef = useRef<Record<string, number>>({});

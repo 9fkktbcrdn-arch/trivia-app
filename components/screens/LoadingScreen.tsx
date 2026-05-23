@@ -71,23 +71,8 @@ export function LoadingScreen() {
       .filter((s) => !s.isMystery)
       .map((s) => s.category);
 
-    let mysterySlotCategory = "";
+    const mysterySlotCategory = "Current Events & World Leaders";
     let totalCostUsd = 0;
-    try {
-      const res = await fetch("/api/choose-category", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          avoidCategories: nonMysteryCategories,
-          mode: "mystery",
-        }),
-      });
-      const data = await res.json();
-      mysterySlotCategory = data.category || "World Wonders";
-      totalCostUsd += data.costUsd ?? 0;
-    } catch {
-      mysterySlotCategory = "World Wonders";
-    }
 
     // Resolve mystery slot in our local copy
     const resolvedSlots = slots.map((s) =>
