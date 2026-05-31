@@ -13,7 +13,21 @@ import {
   difficultyColor,
   generateId,
 } from "@/lib/utils";
+import { getCachedQuestions, cacheQuestions } from "@/lib/question-cache";
 import type { Team, TriviaQuestion, PooledQuestion, Difficulty } from "@/lib/types";
+
+const TIEBREAKER_CATEGORIES = [
+  "General Knowledge",
+  "World Geography",
+  "Science & Nature",
+  "Animals & Wildlife",
+  "Outer Space",
+  "World History",
+  "Famous Inventions",
+  "Sports",
+  "Music & Movies",
+  "Food Around the World",
+];
 
 // ── Scoreboard ────────────────────────────────────────────────────
 
@@ -305,6 +319,23 @@ export function GameScreen() {
     const stealSucceeded = lastTurn.steal?.decision === "steal" && lastTurn.steal.success;
     const stealFailed = lastTurn.steal?.decision === "steal" && !lastTurn.steal.success;
 
+    // Teams that answered, were marked wrong, and can therefore dispute the result
+    const challengers: { teamId: string; teamName: string; answerIndex: number }[] = [];
+    if (!correct && lastTurn.activeTeamAnswerIndex !== currentQ.correctIndex) {
+      challengers.push({
+        teamId: lastTurn.activeTeamId,
+        teamName: activeTeam.name,
+        answerIndex: lastTurn.activeTeamAnswerIndex,
+      });
+    }
+    if (stealFailed && lastTurn.steal && lastTurn.steal.answeredIndex !== undefined) {
+      challengers.push({
+        teamId: lastTurn.steal.teamId,
+        teamName: lastTurn.steal.teamName,
+        answerIndex: lastTurn.steal.answeredIndex,
+      });
+    }
+
     return (
       <div className="min-h-dvh flex flex-col px-4 py-6 max-w-xl mx-auto">
         <Scoreboard teams={teams} activeTeamIndex={currentTeamIndex} deltas={deltas} />
@@ -404,6 +435,11 @@ export function GameScreen() {
             </p>
             <p className="text-sm text-foreground leading-relaxed">{currentQ.explanation}</p>
           </motion.div>
+
+          {/* Challenge — dispute the marked answer */}
+          {challengers.length > 0 && (
+            <ChallengePanel question={currentQ} challengers={challengers} />
+          )}
         </motion.div>
 
         <Button
@@ -499,6 +535,153 @@ function StealDecision({
   );
 }
 
+// ── Challenge Panel ───────────────────────────────────────────────
+
+function ChallengePanel({
+  question,
+  challengers,
+}: {
+  question: PooledQuestion;
+  challengers: { teamId: string; teamName: string; answerIndex: number }[];
+}) {
+  const { dispatch } = useGame();
+  const [expanded, setExpanded] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [result, setResult] = useState<{
+    teamName: string;
+    upheld: boolean;
+    explanation: string;
+    points: number;
+  } | null>(null);
+
+  const full = pointsForDifficulty(question.difficulty);
+  const half = halfPoints(question.difficulty);
+
+  async function runChallenge(c: { teamId: string; teamName: string; answerIndex: number }) {
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/verify-answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: question.question,
+          choices: question.choices,
+          teamAnswerIndex: c.answerIndex,
+        }),
+      });
+      const data = await res.json();
+      if (data.costUsd) dispatch({ type: "ADD_SESSION_COST", costUsd: data.costUsd });
+      const upheld = Boolean(data.teamAnswerCorrect);
+      dispatch({ type: "APPLY_CHALLENGE", teamId: c.teamId, upheld });
+      setResult({
+        teamName: c.teamName,
+        upheld,
+        explanation: data.explanation ?? "",
+        points: upheld ? full : half,
+      });
+    } catch {
+      setResult({
+        teamName: c.teamName,
+        upheld: false,
+        explanation: "Couldn't reach the fact-checker. No points changed.",
+        points: 0,
+      });
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  // ── Result shown ──
+  if (result) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "rounded-xl px-4 py-4 border text-center",
+          result.upheld
+            ? "bg-emerald-400/10 border-emerald-400/40"
+            : "bg-destructive/10 border-destructive/30",
+        )}
+      >
+        <p className="text-2xl mb-1">{result.upheld ? "⚖️✅" : "⚖️❌"}</p>
+        <p className="font-bold text-foreground">
+          {result.upheld
+            ? `Challenge upheld! ${result.teamName} was right.`
+            : `Answer confirmed. ${result.teamName}'s challenge failed.`}
+        </p>
+        <p className={cn("text-sm font-semibold mt-1", result.upheld ? "text-emerald-300" : "text-destructive/80")}>
+          {result.points === 0
+            ? "No change"
+            : result.upheld
+              ? `+${result.points} pts`
+              : `−${result.points} pts`}
+        </p>
+        {result.explanation && (
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{result.explanation}</p>
+        )}
+      </motion.div>
+    );
+  }
+
+  // ── Verifying ──
+  if (verifying) {
+    return (
+      <div className="rounded-xl px-4 py-4 border border-gold-dim/30 bg-gold-dim/5 flex items-center justify-center gap-3">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+          className="w-5 h-5 rounded-full border-2 border-transparent border-t-gold-bright"
+        />
+        <p className="text-sm text-muted-foreground">Double-checking the facts…</p>
+      </div>
+    );
+  }
+
+  // ── Collapsed button ──
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="w-full rounded-xl border border-border bg-card hover:border-gold-dim hover:bg-gold-dim/5 transition-colors px-4 py-3 text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-2"
+      >
+        ⚖️ Think the answer is wrong? Challenge it
+      </button>
+    );
+  }
+
+  // ── Expanded: choose who challenges ──
+  return (
+    <div className="rounded-xl border border-gold-dim/40 bg-gold-dim/5 px-4 py-4">
+      <p className="text-xs font-bold tracking-widest uppercase text-gold-dim mb-2 text-center">
+        Challenge the answer
+      </p>
+      <p className="text-xs text-muted-foreground text-center mb-4 leading-relaxed">
+        Claude re-checks the facts. If your answer was actually right, you win{" "}
+        <span className="text-emerald-400 font-semibold">+{full} pts</span>. If the original
+        answer holds, you lose <span className="text-destructive font-semibold">−{half} pts</span>.
+      </p>
+      <div className="flex flex-col gap-2">
+        {challengers.map((c) => (
+          <Button
+            key={c.teamId}
+            className="w-full h-12 font-semibold"
+            onClick={() => runChallenge(c)}
+          >
+            Challenge for {c.teamName}
+          </Button>
+        ))}
+        <button
+          onClick={() => setExpanded(false)}
+          className="text-xs text-muted-foreground hover:text-foreground mt-1"
+        >
+          Never mind
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Tiebreaker ────────────────────────────────────────────────────
 
 function TiebreakerScreen() {
@@ -520,14 +703,27 @@ function TiebreakerScreen() {
   async function generateTiebreaker() {
     setLoading(true);
     try {
+      // Pick a random category each time, and exclude every tiebreaker question
+      // ever seen (cross-session) so they never repeat.
+      const category =
+        TIEBREAKER_CATEGORIES[Math.floor(Math.random() * TIEBREAKER_CATEGORIES.length)];
+      const existingQuestions = getCachedQuestions("__tiebreaker__");
+
       const res = await fetch("/api/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: "General Knowledge", difficulty: "medium", count: 1 }),
+        body: JSON.stringify({
+          category,
+          difficulty: "medium",
+          count: 1,
+          existingQuestions,
+        }),
       });
       const data = await res.json();
       if (data.costUsd) dispatch({ type: "ADD_SESSION_COST", costUsd: data.costUsd });
-      setTiebreakerQ({ ...data.questions[0], slotId: 0, used: false });
+      const q = data.questions[0];
+      cacheQuestions("__tiebreaker__", [q.question]);
+      setTiebreakerQ({ ...q, slotId: 0, used: false });
     } catch {
       // Try again
     } finally {

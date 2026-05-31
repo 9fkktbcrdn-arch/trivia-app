@@ -56,6 +56,7 @@ type Action =
   // Game-time actions
   | { type: "SUBMIT_ANSWER"; answerIndex: number }
   | { type: "SUBMIT_STEAL"; teamId: string; decision: "steal" | "pass"; answerIndex?: number }
+  | { type: "APPLY_CHALLENGE"; teamId: string; upheld: boolean }
   | { type: "ADVANCE_TURN" }
   // Practice actions
   | { type: "PRACTICE_ANSWER"; answerIndex: number }
@@ -203,6 +204,31 @@ function gameReducer(state: AppState, action: Action): AppState {
           ],
         },
       };
+    }
+
+    case "APPLY_CHALLENGE": {
+      const s = state.session!;
+      const q = s.questionPool[s.currentQuestionIndex];
+      const full = pointsForDifficulty(q.difficulty);
+      const half = halfPoints(q.difficulty);
+      // Challenge upheld → team gains full point value. Challenge denied → team loses half.
+      const delta = action.upheld ? full : -half;
+      const teams = applyPoints(s.teams, { [action.teamId]: delta });
+
+      // Reflect the adjustment in the last turn's record so the results breakdown stays consistent
+      const turns = [...s.turns];
+      const last = turns[turns.length - 1];
+      if (last) {
+        turns[turns.length - 1] = {
+          ...last,
+          pointsAwarded: {
+            ...last.pointsAwarded,
+            [action.teamId]: (last.pointsAwarded[action.teamId] ?? 0) + delta,
+          },
+        };
+      }
+
+      return { ...state, session: { ...s, teams, turns } };
     }
 
     case "ADVANCE_TURN": {
