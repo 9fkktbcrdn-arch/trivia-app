@@ -18,8 +18,6 @@ export function LoadingScreen() {
   const { state, dispatch } = useGame();
   const calledRef = useRef(false);
   const [slotStatuses, setSlotStatuses] = useState<SlotStatus[]>([]);
-  const [mysteryCategory, setMysteryCategory] = useState<string>("");
-
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,24 +60,10 @@ export function LoadingScreen() {
 
   async function runGameTimeGeneration() {
     const setup = state.setup as GameSetup;
-    const slots = setup.categorySlots;
+    const resolvedSlots = setup.categorySlots;
     const teams = setup.teams;
     const gameLength = setup.gameLength;
-
-    // Step 1: resolve mystery category
-    const nonMysteryCategories = slots
-      .filter((s) => !s.isMystery)
-      .map((s) => s.category);
-
-    const mysterySlotCategory = "Current Events & World Leaders";
     let totalCostUsd = 0;
-
-    // Resolve mystery slot in our local copy
-    const resolvedSlots = slots.map((s) =>
-      s.isMystery ? { ...s, category: mysterySlotCategory } : s,
-    );
-    setMysteryCategory(mysterySlotCategory);
-    dispatch({ type: "SET_MYSTERY_CATEGORY", category: mysterySlotCategory });
 
     // Initialize status display
     setSlotStatuses(
@@ -132,12 +116,7 @@ export function LoadingScreen() {
     if (!results) return;
 
     // Record categories played
-    fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "record", name: mysterySlotCategory }),
-    }).catch(() => {});
-    for (const slot of resolvedSlots.filter((s) => !s.isMystery)) {
+    for (const slot of resolvedSlots) {
       fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -225,18 +204,6 @@ export function LoadingScreen() {
 
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-foreground">Preparing your questions…</h2>
-        {mysteryCategory && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-3 px-4 py-2 rounded-xl bg-gold-bright/10 border border-gold-bright/30"
-          >
-            <p className="text-xs text-gold-dim uppercase tracking-widest font-semibold mb-1">
-              Mystery Slot Revealed
-            </p>
-            <p className="text-gold-bright font-bold text-lg">{mysteryCategory}</p>
-          </motion.div>
-        )}
       </div>
 
       {slotStatuses.length > 0 && (
@@ -253,7 +220,7 @@ export function LoadingScreen() {
                       : "text-muted-foreground"
                 }
               >
-                {slot.isMystery ? `Mystery: ${slot.category}` : slot.category}
+                {slot.category}
               </span>
               {status === "loading" && (
                 <motion.span

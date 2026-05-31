@@ -12,6 +12,10 @@ import type { CategorySlot, Difficulty, RecentCategory } from "@/lib/types";
 
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
+// Slot 5 is a normal, editable category that defaults to whatever was used last time.
+const DEFAULT_SLOT5 = "Current Events & World Leaders";
+const SLOT5_STORAGE_KEY = "lastSlot5Category";
+
 function createDefaultSlots(isGame: boolean): CategorySlot[] {
   if (isGame) {
     return [
@@ -19,7 +23,7 @@ function createDefaultSlots(isGame: boolean): CategorySlot[] {
       { id: 2, category: "", difficulty: "medium", isMystery: false, isLocked: false },
       { id: 3, category: "", difficulty: "medium", isMystery: false, isLocked: false },
       { id: 4, category: "", difficulty: "medium", isMystery: false, isLocked: false },
-      { id: 5, category: "", difficulty: "medium", isMystery: true, isLocked: false },
+      { id: 5, category: DEFAULT_SLOT5, difficulty: "medium", isMystery: false, isLocked: true },
     ];
   }
   return [{ id: 1, category: "", difficulty: "medium", isMystery: false, isLocked: false }];
@@ -41,6 +45,19 @@ export function SetupCategoriesScreen() {
       .then((data) => setRecentCategories(data.recent ?? []))
       .catch(() => {});
   }, []);
+
+  // Slot 5 remembers the category used last time
+  useEffect(() => {
+    if (!isGame) return;
+    try {
+      const stored = localStorage.getItem(SLOT5_STORAGE_KEY);
+      if (stored) {
+        setSlots((prev) =>
+          prev.map((s) => (s.id === 5 ? { ...s, category: stored, isLocked: true } : s)),
+        );
+      }
+    } catch {}
+  }, [isGame]);
 
   function updateSlot(id: number, updates: Partial<CategorySlot>) {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
@@ -87,6 +104,13 @@ export function SetupCategoriesScreen() {
   }
 
   function handleContinue() {
+    // Persist slot 5 so it defaults to this pick next time
+    if (isGame) {
+      const slot5 = slots.find((s) => s.id === 5);
+      if (slot5?.category) {
+        try { localStorage.setItem(SLOT5_STORAGE_KEY, slot5.category); } catch {}
+      }
+    }
     dispatch({ type: "SET_CATEGORY_SLOTS", slots });
     if (isGame) {
       navigate("setup-review");
@@ -96,9 +120,9 @@ export function SetupCategoriesScreen() {
     }
   }
 
-  const filledNonMystery = slots.filter((s) => !s.isMystery && s.category).length;
-  const requiredSlots = isGame ? 4 : 1;
-  const canContinue = filledNonMystery >= requiredSlots;
+  const filledCount = slots.filter((s) => s.category).length;
+  const requiredSlots = isGame ? 5 : 1;
+  const canContinue = filledCount >= requiredSlots;
   const filteredPresets = PRESET_CATEGORIES.filter((p) =>
     p.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -118,7 +142,7 @@ export function SetupCategoriesScreen() {
         title={isGame ? "Pick your categories" : "Pick a category"}
         subtitle={
           isGame
-            ? "Tap a slot to choose its category. Slot 5 is always a mystery. Point values are assigned automatically based on question difficulty."
+            ? "Choose five categories. Point values are assigned automatically based on each question's difficulty. The last slot remembers your previous pick — edit it any time."
             : "Choose one category and difficulty for your practice session."
         }
       />
@@ -159,7 +183,7 @@ export function SetupCategoriesScreen() {
       {!canContinue && (
         <p className="text-center text-sm text-muted-foreground mt-3">
           {isGame
-            ? `Fill in ${requiredSlots - filledNonMystery} more slot${requiredSlots - filledNonMystery !== 1 ? "s" : ""} to continue`
+            ? `Fill in ${requiredSlots - filledCount} more slot${requiredSlots - filledCount !== 1 ? "s" : ""} to continue`
             : "Pick a category to continue"}
         </p>
       )}
